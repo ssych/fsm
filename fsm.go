@@ -44,7 +44,7 @@ func New(column string, events []Event) *FSM {
 	return f
 }
 
-func (f *FSM) Event(s interface{}, event string) error {
+func (f *FSM) Fire(s interface{}, event string) error {
 
 	val := reflect.ValueOf(s).Elem()
 

@@ -28,7 +28,7 @@ func TestSetState(t *testing.T) {
 		Guard: IsTestStructValid,
 	}})
 
-	fsm.Event(testStruct, "make")
+	fsm.Fire(testStruct, "make")
 	if testStruct.State != State("finished") {
 		t.Error("expected state to be 'finished'")
 	}
@@ -46,7 +46,7 @@ func TestInvalidTransition(t *testing.T) {
 		Guard: IsTestStructInvalid,
 	}})
 
-	err := fsm.Event(testStruct, "make")
+	err := fsm.Fire(testStruct, "make")
 
 	if e, ok := err.(InvalidTransitionError); !ok && e.Event != "make" && e.State != "started" {
 		t.Error("expected 'InvalidTransitionError'")
@@ -65,7 +65,7 @@ func TestInvalidEvent(t *testing.T) {
 		Guard: IsTestStructInvalid,
 	}})
 
-	err := fsm.Event(testStruct, "some_event_name")
+	err := fsm.Fire(testStruct, "some_event_name")
 
 	if e, ok := err.(UnknownEventError); !ok && e.Event != "some_event_name" {
 		t.Error("expected 'UnknownEventError'")

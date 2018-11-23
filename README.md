@@ -41,7 +41,7 @@ func main() {
   }})
 
   fmt.Println(person.State)
-  fsm.Event(person, "grow_rich")
+  fsm.Fire(person, "grow_rich")
   fmt.Println(person.State)
 }
 ```
