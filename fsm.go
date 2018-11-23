@@ -34,9 +34,11 @@ func New(column string, events []Event) *FSM {
 	f.guards = make(map[string]func(interface{}) bool)
 
 	for _, e := range events {
-		f.guards[e.Name] = e.Guard
-		for _, src := range e.From {
+		if e.Guard != nil {
+			f.guards[e.Name] = e.Guard
+		}
 
+		for _, src := range e.From {
 			f.transitions[eventKey{event: e.Name, src: src}] = e.To
 		}
 	}
@@ -54,7 +56,7 @@ func (f *FSM) Fire(s interface{}, event string) error {
 
 	state := val.FieldByName(f.column)
 
-	if !state.CanSet() && state.Kind() != reflect.String {
+	if !state.IsValid() && !state.CanSet() && state.Kind() != reflect.String {
 		return InternalError{}
 	}
 
@@ -64,9 +66,7 @@ func (f *FSM) Fire(s interface{}, event string) error {
 	}
 
 	guard, ok := f.guards[event]
-
-	ok = guard(s)
-	if !ok {
+	if ok && !guard(s) {
 		return InvalidTransitionError{event, state.String()}
 	}
 
