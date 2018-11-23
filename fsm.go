@@ -1,7 +1,6 @@
 package fsm
 
 import (
-	"errors"
 	"reflect"
 	"sync"
 )
@@ -50,29 +49,29 @@ func (f *FSM) Event(s interface{}, event string) error {
 	val := reflect.ValueOf(s).Elem()
 
 	if val.Kind() != reflect.Struct {
-		return errors.New("struct not found")
+		return InternalError{}
 	}
 
-	v := val.FieldByName(f.column)
+	state := val.FieldByName(f.column)
 
-	if !v.CanSet() && v.Kind() != reflect.String {
-		return errors.New("error")
+	if !state.CanSet() && state.Kind() != reflect.String {
+		return InternalError{}
 	}
 
-	destination, ok := f.transitions[eventKey{event, v.String()}]
+	destination, ok := f.transitions[eventKey{event, state.String()}]
 	if !ok {
-		return errors.New("event not found")
+		return UnknownEventError{event}
 	}
 
 	guard, ok := f.guards[event]
 
 	ok = guard(s)
 	if !ok {
-		return errors.New("")
+		return InvalidTransitionError{event, state.String()}
 	}
 
 	f.Lock()
-	v.SetString(destination)
+	state.SetString(destination)
 	f.Unlock()
 
 	return nil
