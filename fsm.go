@@ -6,19 +6,29 @@ import (
 )
 
 type Event struct {
-	Name  string
-	From  []string
-	To    string
-	Guard func(interface{}) bool
+	Event  string
+	Source interface{}
+
+	Destination string
 }
 
-type Events []Event
+type EventTransition struct {
+	Name   string
+	From   []string
+	To     string
+	Guard  func(*Event) (bool, error)
+	After  func(*Event) error
+	Before func(*Event) error
+}
+
+type Events []EventTransition
 
 type FSM struct {
 	sync.RWMutex
 	column      string
 	transitions map[eventKey]string
-	guards      map[string]func(interface{}) bool
+	guards      map[string]func(*Event) (bool, error)
+	callbacks   map[cKey]func(*Event) error
 }
 
 type eventKey struct {
@@ -26,16 +36,30 @@ type eventKey struct {
 	src   string
 }
 
-func New(column string, events []Event) *FSM {
+type cKey struct {
+	event string
+	cType string
+}
+
+func New(column string, events []EventTransition) *FSM {
 	f := &FSM{
 		column: column,
 	}
 	f.transitions = make(map[eventKey]string)
-	f.guards = make(map[string]func(interface{}) bool)
+	f.guards = make(map[string]func(*Event) (bool, error))
+	f.callbacks = make(map[cKey]func(*Event) error)
 
 	for _, e := range events {
 		if e.Guard != nil {
 			f.guards[e.Name] = e.Guard
+		}
+
+		if e.After != nil {
+			f.callbacks[cKey{event: e.Name, cType: "after"}] = e.After
+		}
+
+		if e.Before != nil {
+			f.callbacks[cKey{event: e.Name, cType: "before"}] = e.Before
 		}
 
 		for _, src := range e.From {
@@ -60,19 +84,64 @@ func (f *FSM) Fire(s interface{}, event string) error {
 		return InternalError{}
 	}
 
-	destination, ok := f.transitions[eventKey{event, state.String()}]
+	src := state.String()
+
+	destination, ok := f.transitions[eventKey{event, src}]
 	if !ok {
 		return UnknownEventError{event}
 	}
 
-	guard, ok := f.guards[event]
-	if ok && !guard(s) {
-		return InvalidTransitionError{event, state.String()}
+	e := &Event{Event: event, Source: s, Destination: destination}
+
+	ok, err := f.guardEvent(e)
+
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return InvalidTransitionError{event, src}
 	}
 
 	f.Lock()
+
+	err = f.beforeEventCallbacks(e)
+	if err != nil {
+		return err
+	}
+
 	state.SetString(destination)
+
+	err = f.afterEventCallbacks(e)
+	if err != nil {
+		return err
+	}
+
 	f.Unlock()
 
+	return nil
+}
+
+func (f *FSM) guardEvent(e *Event) (bool, error) {
+	fn, ok := f.guards[e.Event]
+	if ok {
+		return fn(e)
+	}
+	return true, nil
+}
+
+func (f *FSM) afterEventCallbacks(e *Event) error {
+	fn, ok := f.callbacks[cKey{event: e.Event, cType: "after"}]
+	if ok {
+		return fn(e)
+	}
+	return nil
+}
+
+func (f *FSM) beforeEventCallbacks(e *Event) error {
+	fn, ok := f.callbacks[cKey{event: e.Event, cType: "before"}]
+	if ok {
+		return fn(e)
+	}
 	return nil
 }

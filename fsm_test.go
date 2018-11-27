@@ -8,12 +8,12 @@ type TestStruct struct {
 	State State
 }
 
-func IsTestStructValid(s interface{}) bool {
-	return true
+func IsTestStructValid(e *Event) (bool, error) {
+	return true, nil
 }
 
-func IsTestStructInvalid(s interface{}) bool {
-	return false
+func IsTestStructInvalid(e *Event) (bool, error) {
+	return false, nil
 }
 
 func TestSetState(t *testing.T) {

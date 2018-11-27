@@ -18,12 +18,24 @@ type Person struct {
   State fsm.State
 }
 
-func IsRich(s interface{}) bool {
-  person := s.(*Person)
+func isRich(e *fsm.Event) (bool, error) {
+  person := e.Source.(*Person)
   if person.Сash > 1000000 {
-    return true
+    return true, nil
   }
-  return false
+  return false, nil
+}
+
+func after(e *fsm.Event) error {
+  person := e.Source.(*Person)
+  fmt.Println(person.State)
+  return nil
+}
+
+func before(e *fsm.Event) error {
+  person := e.Source.(*Person)
+  fmt.Println(person.State)
+  return nil
 }
 
 func main() {
@@ -34,14 +46,15 @@ func main() {
   }
 
   fsm := fsm.New("State", fsm.Events{{
-    Name:  "grow_rich",
-    From:  []string{"poor"},
-    To:    "rich",
-    Guard: IsRich,
+    Name:   "grow_rich",
+    From:   []string{"poor"},
+    To:     "rich",
+    Guard:  isRich,
+    After:  after,
+    Before: before,
   }})
 
-  fmt.Println(person.State)
   fsm.Fire(person, "grow_rich")
-  fmt.Println(person.State)
 }
+
 ```
