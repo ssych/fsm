@@ -45,15 +45,18 @@ func main() {
     State: fsm.State("poor"),
   }
 
-  fsm := NewFSM()
+  f := fsm.NewFSM()
 
-  fsm.Register("person", "State", Events{{
-    Name:  "make",
-    From:  []string{"started"},
-    To:    "finished",
-    Guard: IsTestStructValid,
+  f.Register("person", "State", fsm.Events{{
+    Name:   "grow_rich",
+    From:   []string{"poor"},
+    To:     "rich",
+    Guard:  isRich,
+    After:  after,
+    Before: before,
   }})
 
-  fsm.Set("person").Fire(person, "grow_rich")
+  f.Set("person").Fire(person, "grow_rich")
 }
+
 ```
