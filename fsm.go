@@ -6,9 +6,8 @@ import (
 )
 
 type Event struct {
-	Event  string
-	Source interface{}
-
+	Event       string
+	Source      interface{}
 	Destination string
 }
 
@@ -23,7 +22,7 @@ type EventTransition struct {
 
 type Events []EventTransition
 
-type FSM struct {
+type fsm struct {
 	sync.RWMutex
 	column      string
 	transitions map[eventKey]string
@@ -41,8 +40,8 @@ type cKey struct {
 	cType string
 }
 
-func New(column string, events []EventTransition) *FSM {
-	f := &FSM{
+func New(column string, events []EventTransition) *fsm {
+	f := &fsm{
 		column: column,
 	}
 	f.transitions = make(map[eventKey]string)
@@ -70,7 +69,7 @@ func New(column string, events []EventTransition) *FSM {
 	return f
 }
 
-func (f *FSM) Fire(s interface{}, event string) error {
+func (f *fsm) Fire(s interface{}, event string) error {
 
 	val := reflect.ValueOf(s).Elem()
 
@@ -122,7 +121,7 @@ func (f *FSM) Fire(s interface{}, event string) error {
 	return nil
 }
 
-func (f *FSM) guardEvent(e *Event) (bool, error) {
+func (f *fsm) guardEvent(e *Event) (bool, error) {
 	fn, ok := f.guards[e.Event]
 	if ok {
 		return fn(e)
@@ -130,7 +129,7 @@ func (f *FSM) guardEvent(e *Event) (bool, error) {
 	return true, nil
 }
 
-func (f *FSM) afterEventCallbacks(e *Event) error {
+func (f *fsm) afterEventCallbacks(e *Event) error {
 	fn, ok := f.callbacks[cKey{event: e.Event, cType: "after"}]
 	if ok {
 		return fn(e)
@@ -138,7 +137,7 @@ func (f *FSM) afterEventCallbacks(e *Event) error {
 	return nil
 }
 
-func (f *FSM) beforeEventCallbacks(e *Event) error {
+func (f *fsm) beforeEventCallbacks(e *Event) error {
 	fn, ok := f.callbacks[cKey{event: e.Event, cType: "before"}]
 	if ok {
 		return fn(e)
