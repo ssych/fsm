@@ -1,6 +1,7 @@
 package fsm
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 )
@@ -8,13 +9,13 @@ import (
 type Event struct {
 	Event       string
 	Source      interface{}
-	Destination string
+	Destination State
 }
 
 type EventTransition struct {
 	Name   string
-	From   []string
-	To     string
+	From   []State
+	To     State
 	Guard  func(*Event) (bool, error)
 	After  func(*Event) error
 	Before func(*Event) error
@@ -25,14 +26,14 @@ type Events []EventTransition
 type fsm struct {
 	sync.RWMutex
 	column      string
-	transitions map[eventKey]string
+	transitions map[eventKey]State
 	guards      map[string]func(*Event) (bool, error)
 	callbacks   map[cKey]func(*Event) error
 }
 
 type eventKey struct {
 	event string
-	src   string
+	src   State
 }
 
 type cKey struct {
@@ -40,11 +41,11 @@ type cKey struct {
 	cType string
 }
 
-func New(column string, events []EventTransition) *fsm {
+func newFSM(column string, events []EventTransition) *fsm {
 	f := &fsm{
 		column: column,
 	}
-	f.transitions = make(map[eventKey]string)
+	f.transitions = make(map[eventKey]State)
 	f.guards = make(map[string]func(*Event) (bool, error))
 	f.callbacks = make(map[cKey]func(*Event) error)
 
@@ -85,7 +86,7 @@ func (f *fsm) Fire(s interface{}, event string) error {
 
 	src := state.String()
 
-	destination, ok := f.transitions[eventKey{event, src}]
+	destination, ok := f.transitions[eventKey{event, State(src)}]
 	if !ok {
 		return UnknownEventError{event}
 	}
@@ -109,7 +110,7 @@ func (f *fsm) Fire(s interface{}, event string) error {
 		return err
 	}
 
-	state.SetString(destination)
+	state.SetString(fmt.Sprintf("%s", destination))
 
 	err = f.afterEventCallbacks(e)
 	if err != nil {

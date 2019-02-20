@@ -1,6 +1,7 @@
 package fsm
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -23,14 +24,14 @@ func TestSetState(t *testing.T) {
 
 	fsm := NewFSM()
 
-	fsm.Register("test", "State", Events{{
+	fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
 		Name:  "make",
-		From:  []string{"started"},
-		To:    "finished",
+		From:  []State{"started"},
+		To:    State("finished"),
 		Guard: IsTestStructValid,
 	}})
 
-	fsm.Set("test").Fire(testStruct, "make")
+	fsm.Fire(testStruct, "make")
 	if testStruct.State != State("finished") {
 		t.Error("expected state to be 'finished'")
 	}
@@ -43,14 +44,14 @@ func TestInvalidTransition(t *testing.T) {
 
 	fsm := NewFSM()
 
-	fsm.Register("test", "State", Events{{
+	fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
 		Name:  "make",
-		From:  []string{"started"},
-		To:    "finished",
+		From:  []State{"started"},
+		To:    State("finished"),
 		Guard: IsTestStructInvalid,
 	}})
 
-	err := fsm.Set("test").Fire(testStruct, "make")
+	err := fsm.Fire(testStruct, "make")
 
 	if e, ok := err.(InvalidTransitionError); !ok && e.Event != "make" && e.State != "started" {
 		t.Error("expected 'InvalidTransitionError'")
@@ -63,14 +64,14 @@ func TestInvalidEvent(t *testing.T) {
 	}
 
 	fsm := NewFSM()
-	fsm.Register("test", "State", Events{{
+	fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
 		Name:  "make",
-		From:  []string{"started"},
-		To:    "finished",
+		From:  []State{"started"},
+		To:    State("finished"),
 		Guard: IsTestStructInvalid,
 	}})
 
-	err := fsm.Set("test").Fire(testStruct, "some_event_name")
+	err := fsm.Fire(testStruct, "some_event_name")
 
 	if e, ok := err.(UnknownEventError); !ok && e.Event != "some_event_name" {
 		t.Error("expected 'UnknownEventError'")

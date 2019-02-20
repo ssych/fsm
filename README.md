@@ -9,8 +9,9 @@ package main
 
 import (
   "fmt"
+  "reflect"
 
-  "github.com/stasmoon/fsm"
+  "github.com/ssych/fsm"
 )
 
 type Person struct {
@@ -47,16 +48,16 @@ func main() {
 
   f := fsm.NewFSM()
 
-  f.Register("person", "State", fsm.Events{{
+  f.Register(reflect.TypeOf((*Person)(nil)), "State", fsm.Events{{
     Name:   "grow_rich",
-    From:   []string{"poor"},
-    To:     "rich",
+    From:   []fsm.State{"poor"},
+    To:     fsm.State("rich"),
     Guard:  isRich,
     After:  after,
     Before: before,
   }})
 
-  f.Set("person").Fire(person, "grow_rich")
+  f.Fire(person, "grow_rich")
 }
 
 ```
