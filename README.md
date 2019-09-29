@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/ssych/fsm.svg?branch=master)](https://travis-ci.org/ssych/fsm)
+
 ##  finite state machine for Go
 
 This is package implements [finite state machine](https://en.wikipedia.org/wiki/Finite-state_machine)
