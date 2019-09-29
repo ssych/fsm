@@ -6,6 +6,8 @@ import (
 	"sync"
 )
 
+type Guard func(*Event) (bool, error)
+
 type Event struct {
 	Event       string
 	Source      interface{}
@@ -16,7 +18,7 @@ type EventTransition struct {
 	Name   string
 	From   []State
 	To     State
-	Guard  func(*Event) (bool, error)
+	Guards []Guard
 	After  func(*Event) error
 	Before func(*Event) error
 }
@@ -25,10 +27,11 @@ type Events []EventTransition
 
 type fsm struct {
 	sync.RWMutex
-	column      string
-	transitions map[eventKey]State
-	guards      map[string]func(*Event) (bool, error)
-	callbacks   map[cKey]func(*Event) error
+	column        string
+	transitions   map[eventKey]State
+	initialStates map[State][]string
+	guards        map[string][]Guard
+	callbacks     map[cKey]func(*Event) error
 }
 
 type eventKey struct {
@@ -46,12 +49,13 @@ func newFSM(column string, events []EventTransition) *fsm {
 		column: column,
 	}
 	f.transitions = make(map[eventKey]State)
-	f.guards = make(map[string]func(*Event) (bool, error))
+	f.guards = make(map[string][]Guard)
 	f.callbacks = make(map[cKey]func(*Event) error)
+	f.initialStates = make(map[State][]string)
 
 	for _, e := range events {
-		if e.Guard != nil {
-			f.guards[e.Name] = e.Guard
+		if e.Guards != nil {
+			f.guards[e.Name] = e.Guards
 		}
 
 		if e.After != nil {
@@ -67,40 +71,33 @@ func newFSM(column string, events []EventTransition) *fsm {
 		}
 	}
 
+	for eventKey, _ := range f.transitions {
+		f.initialStates[eventKey.src] = append(f.initialStates[eventKey.src], eventKey.event)
+	}
+
 	return f
 }
 
 func (f *fsm) Fire(s interface{}, event string) error {
-
-	val := reflect.ValueOf(s).Elem()
-
-	if val.Kind() != reflect.Struct {
-		return InternalError{}
+	state, err := f.getSourceState(s)
+	if err != nil {
+		return err
 	}
 
-	state := val.FieldByName(f.column)
-
-	if !state.IsValid() && !state.CanSet() && state.Kind() != reflect.String {
-		return InternalError{}
-	}
-
-	src := state.String()
-
-	destination, ok := f.transitions[eventKey{event, State(src)}]
+	destination, ok := f.transitions[eventKey{event, State(state.String())}]
 	if !ok {
 		return UnknownEventError{event}
 	}
 
 	e := &Event{Event: event, Source: s, Destination: destination}
 
-	ok, err := f.guardEvent(e)
-
+	ok, err = f.guardEvent(e)
 	if err != nil {
 		return err
 	}
 
 	if !ok {
-		return InvalidTransitionError{event, src}
+		return InvalidTransitionError{event, state.String()}
 	}
 
 	f.Lock()
@@ -122,10 +119,84 @@ func (f *fsm) Fire(s interface{}, event string) error {
 	return nil
 }
 
+func (f *fsm) MayFire(s interface{}, event string, options ...Option) (bool, error) {
+	// Setup options.
+	args := &Options{}
+	for _, option := range options {
+		option(args)
+	}
+
+	state, err := f.getSourceState(s)
+	if err != nil {
+		return false, err
+	}
+
+	destination, ok := f.transitions[eventKey{event, State(state.String())}]
+	if !ok {
+		return false, nil
+	}
+
+	e := &Event{Event: event, Source: s, Destination: destination}
+
+	if !args.SkipGuards {
+		ok, err = f.guardEvent(e)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return ok, nil
+}
+
+func (f *fsm) GetPermittedEvents(s interface{}, options ...Option) ([]string, error) {
+	state, err := f.getSourceState(s)
+	if err != nil {
+		return nil, err
+	}
+
+	events, ok := f.initialStates[State(state.String())]
+	if !ok {
+		return []string{}, nil
+	}
+
+	permittedEvents := []string{}
+	for _, event := range events {
+		ok, err := f.MayFire(s, event, options...)
+		if err != nil {
+			return nil, err
+		}
+
+		if ok {
+			permittedEvents = append(permittedEvents, event)
+		}
+	}
+
+	return permittedEvents, nil
+}
+
+func (f *fsm) getSourceState(s interface{}) (state reflect.Value, err error) {
+	val := reflect.ValueOf(s).Elem()
+
+	if val.Kind() != reflect.Struct {
+		return state, InternalError{}
+	}
+
+	state = val.FieldByName(f.column)
+	if !state.IsValid() && !state.CanSet() && state.Kind() != reflect.String {
+		return state, InternalError{}
+	}
+
+	return
+}
+
 func (f *fsm) guardEvent(e *Event) (bool, error) {
-	fn, ok := f.guards[e.Event]
+	fns, ok := f.guards[e.Event]
 	if ok {
-		return fn(e)
+		for _, fn := range fns {
+			if ok, err := fn(e); err != nil || !ok {
+				return false, err
+			}
+		}
 	}
 	return true, nil
 }

@@ -24,12 +24,14 @@ func TestSetState(t *testing.T) {
 
 	fsm := NewFSM()
 
-	fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
-		Name:  "make",
-		From:  []State{"started"},
-		To:    State("finished"),
-		Guard: IsTestStructValid,
-	}})
+	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+		Name:   "make",
+		From:   []State{"started"},
+		To:     State("finished"),
+		Guards: []Guard{IsTestStructValid},
+	}}); err != nil {
+		t.Errorf("fsm.Register() error = %v", err)
+	}
 
 	fsm.Fire(testStruct, "make")
 	if testStruct.State != State("finished") {
@@ -44,12 +46,14 @@ func TestInvalidTransition(t *testing.T) {
 
 	fsm := NewFSM()
 
-	fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
-		Name:  "make",
-		From:  []State{"started"},
-		To:    State("finished"),
-		Guard: IsTestStructInvalid,
-	}})
+	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+		Name:   "make",
+		From:   []State{"started"},
+		To:     State("finished"),
+		Guards: []Guard{IsTestStructInvalid},
+	}}); err != nil {
+		t.Errorf("fsm.Register() error = %v", err)
+	}
 
 	err := fsm.Fire(testStruct, "make")
 
@@ -64,16 +68,90 @@ func TestInvalidEvent(t *testing.T) {
 	}
 
 	fsm := NewFSM()
-	fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
-		Name:  "make",
-		From:  []State{"started"},
-		To:    State("finished"),
-		Guard: IsTestStructInvalid,
-	}})
+	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+		Name:   "make",
+		From:   []State{"started"},
+		To:     State("finished"),
+		Guards: []Guard{IsTestStructInvalid},
+	}}); err != nil {
+		t.Errorf("fsm.Register() error = %v", err)
+	}
 
 	err := fsm.Fire(testStruct, "some_event_name")
 
 	if e, ok := err.(UnknownEventError); !ok && e.Event != "some_event_name" {
 		t.Error("expected 'UnknownEventError'")
+	}
+}
+
+func TestPermittedEvents(t *testing.T) {
+	testStruct := &TestStruct{
+		State: State("started"),
+	}
+
+	fsm := NewFSM()
+	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+		Name: "make",
+		From: []State{"started"},
+		To:   State("finished"),
+	}}); err != nil {
+		t.Errorf("fsm.Register() error = %v", err)
+	}
+
+	permittedEvents, err := fsm.GetPermittedEvents(testStruct)
+	if err != nil {
+		t.Errorf("fsm.GetPermittedEvents() error = %v", err)
+	}
+
+	if len(permittedEvents) == 0 {
+		t.Error("expected permitted events to be ['make']")
+	}
+}
+
+func TestUnknownSrcState(t *testing.T) {
+	testStruct := &TestStruct{
+		State: State("started"),
+	}
+
+	fsm := NewFSM()
+	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+		Name: "make",
+		From: []State{"finished"},
+		To:   State("started"),
+	}}); err != nil {
+		t.Errorf("fsm.Register() error = %v", err)
+	}
+
+	permittedEvents, err := fsm.GetPermittedEvents(testStruct)
+	if err != nil {
+		t.Errorf("fsm.GetPermittedEvents() error = %v", err)
+	}
+
+	if len(permittedEvents) != 0 {
+		t.Error("expected len permitted events to be 0")
+	}
+}
+
+func TestPermittedEventsSkipGuards(t *testing.T) {
+	testStruct := &TestStruct{
+		State: State("started"),
+	}
+
+	fsm := NewFSM()
+	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+		Name: "make",
+		From: []State{"started"},
+		To:   State("finished"),
+	}}); err != nil {
+		t.Errorf("fsm.Register() error = %v", err)
+	}
+
+	permittedEvents, err := fsm.GetPermittedEvents(testStruct, SkipGuard(true))
+	if err != nil {
+		t.Errorf("fsm.GetPermittedEvents() error = %v", err)
+	}
+
+	if len(permittedEvents) == 0 {
+		t.Error("expected permitted events to be ['make']")
 	}
 }
