@@ -33,7 +33,12 @@ func TestSetState(t *testing.T) {
 		t.Errorf("fsm.Register() error = %v", err)
 	}
 
-	fsm.Fire(testStruct, "make")
+	err := fsm.Fire(testStruct, "make")
+
+	if err != nil {
+		t.Errorf("error = %v", err)
+	}
+
 	if testStruct.State != State("finished") {
 		t.Error("expected state to be 'finished'")
 	}

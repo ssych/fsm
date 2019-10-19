@@ -1,7 +1,6 @@
 package fsm
 
 import (
-	"fmt"
 	"reflect"
 	"sync"
 )
@@ -71,7 +70,7 @@ func newFSM(column string, events []EventTransition) *fsm {
 		}
 	}
 
-	for eventKey, _ := range f.transitions {
+	for eventKey := range f.transitions {
 		f.initialStates[eventKey.src] = append(f.initialStates[eventKey.src], eventKey.event)
 	}
 
@@ -107,7 +106,7 @@ func (f *fsm) Fire(s interface{}, event string) error {
 		return err
 	}
 
-	state.SetString(fmt.Sprintf("%s", destination))
+	state.SetString(string(destination))
 
 	err = f.afterEventCallbacks(e)
 	if err != nil {
