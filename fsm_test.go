@@ -160,3 +160,30 @@ func TestPermittedEventsSkipGuards(t *testing.T) {
 		t.Error("expected permitted events to be ['make']")
 	}
 }
+
+func TestPermittedStates(t *testing.T) {
+	startedState := State("started")
+	finishedState := State("finished")
+
+	testStruct := &TestStruct{
+		State: startedState,
+	}
+
+	fsm := NewFSM()
+	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+		Name: "make",
+		From: []State{startedState},
+		To:   finishedState,
+	}}); err != nil {
+		t.Errorf("fsm.Register() error = %v", err)
+	}
+
+	permittedStates, err := fsm.GetPermittedStates(testStruct)
+	if err != nil {
+		t.Errorf("fsm.GetPermittedStates() error = %v", err)
+	}
+
+	if len(permittedStates) == 0 {
+		t.Errorf("expected permitted state to be %v", finishedState)
+	}
+}

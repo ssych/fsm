@@ -173,6 +173,30 @@ func (f *fsm) GetPermittedEvents(s interface{}, options ...Option) ([]string, er
 	return permittedEvents, nil
 }
 
+func (f *fsm) GetPermittedStates(s interface{}, options ...Option) ([]State, error) {
+	state, err := f.getSourceState(s)
+	if err != nil {
+		return nil, err
+	}
+
+	events, ok := f.initialStates[State(state.String())]
+	if !ok {
+		return []State{}, nil
+	}
+
+	permittedStates := []State{}
+	for _, event := range events {
+		destination, ok := f.transitions[eventKey{event, State(state.String())}]
+		if !ok {
+			return nil, UnknownEventError{event}
+		}
+
+		permittedStates = append(permittedStates, destination)
+	}
+
+	return permittedStates, nil
+}
+
 func (f *fsm) getSourceState(s interface{}) (state reflect.Value, err error) {
 	val := reflect.ValueOf(s).Elem()
 
