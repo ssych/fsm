@@ -15,8 +15,12 @@ func NewFSM() *FSM {
 	return f
 }
 
-// Register func to register all event by model reflect type
-func (f *FSM) Register(tag reflect.Type, column string, events []EventTransition) error {
+// Register registers all events for model type T.
+func Register[T any](f *FSM, column string, events []EventTransition) error {
+	return f.register(reflect.TypeFor[T](), column, events)
+}
+
+func (f *FSM) register(tag reflect.Type, column string, events []EventTransition) error {
 	f.machines[tag] = newFSM(column, events)
 	return nil
 }

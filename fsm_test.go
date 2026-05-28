@@ -1,9 +1,6 @@
 package fsm
 
-import (
-	"reflect"
-	"testing"
-)
+import "testing"
 
 type TestStruct struct {
 	State State
@@ -24,13 +21,13 @@ func TestSetState(t *testing.T) {
 
 	fsm := NewFSM()
 
-	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+	if err := Register[*TestStruct](fsm, "State", Events{{
 		Name:   "make",
 		From:   []State{"started"},
 		To:     State("finished"),
 		Guards: []Guard{IsTestStructValid},
 	}}); err != nil {
-		t.Errorf("fsm.Register() error = %v", err)
+		t.Errorf("Register() error = %v", err)
 	}
 
 	err := fsm.Fire(testStruct, "make")
@@ -51,13 +48,13 @@ func TestInvalidTransition(t *testing.T) {
 
 	fsm := NewFSM()
 
-	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+	if err := Register[*TestStruct](fsm, "State", Events{{
 		Name:   "make",
 		From:   []State{"started"},
 		To:     State("finished"),
 		Guards: []Guard{IsTestStructInvalid},
 	}}); err != nil {
-		t.Errorf("fsm.Register() error = %v", err)
+		t.Errorf("Register() error = %v", err)
 	}
 
 	err := fsm.Fire(testStruct, "make")
@@ -73,13 +70,13 @@ func TestInvalidEvent(t *testing.T) {
 	}
 
 	fsm := NewFSM()
-	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+	if err := Register[*TestStruct](fsm, "State", Events{{
 		Name:   "make",
 		From:   []State{"started"},
 		To:     State("finished"),
 		Guards: []Guard{IsTestStructInvalid},
 	}}); err != nil {
-		t.Errorf("fsm.Register() error = %v", err)
+		t.Errorf("Register() error = %v", err)
 	}
 
 	err := fsm.Fire(testStruct, "some_event_name")
@@ -95,12 +92,12 @@ func TestPermittedEvents(t *testing.T) {
 	}
 
 	fsm := NewFSM()
-	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+	if err := Register[*TestStruct](fsm, "State", Events{{
 		Name: "make",
 		From: []State{"started"},
 		To:   State("finished"),
 	}}); err != nil {
-		t.Errorf("fsm.Register() error = %v", err)
+		t.Errorf("Register() error = %v", err)
 	}
 
 	permittedEvents, err := fsm.GetPermittedEvents(testStruct)
@@ -119,12 +116,12 @@ func TestUnknownSrcState(t *testing.T) {
 	}
 
 	fsm := NewFSM()
-	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+	if err := Register[*TestStruct](fsm, "State", Events{{
 		Name: "make",
 		From: []State{"finished"},
 		To:   State("started"),
 	}}); err != nil {
-		t.Errorf("fsm.Register() error = %v", err)
+		t.Errorf("Register() error = %v", err)
 	}
 
 	permittedEvents, err := fsm.GetPermittedEvents(testStruct)
@@ -143,12 +140,12 @@ func TestPermittedEventsSkipGuards(t *testing.T) {
 	}
 
 	fsm := NewFSM()
-	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+	if err := Register[*TestStruct](fsm, "State", Events{{
 		Name: "make",
 		From: []State{"started"},
 		To:   State("finished"),
 	}}); err != nil {
-		t.Errorf("fsm.Register() error = %v", err)
+		t.Errorf("Register() error = %v", err)
 	}
 
 	permittedEvents, err := fsm.GetPermittedEvents(testStruct, SkipGuard(true))
@@ -170,12 +167,12 @@ func TestPermittedStates(t *testing.T) {
 	}
 
 	fsm := NewFSM()
-	if err := fsm.Register(reflect.TypeOf((*TestStruct)(nil)), "State", Events{{
+	if err := Register[*TestStruct](fsm, "State", Events{{
 		Name: "make",
 		From: []State{startedState},
 		To:   finishedState,
 	}}); err != nil {
-		t.Errorf("fsm.Register() error = %v", err)
+		t.Errorf("Register() error = %v", err)
 	}
 
 	permittedStates, err := fsm.GetPermittedStates(testStruct)

@@ -11,9 +11,8 @@ package main
 
 import (
 	"fmt"
-	"reflect"
 
-	"github.com/ssych/fsm"
+	"github.com/ssych/fsm/v2"
 )
 
 type Person struct {
@@ -42,7 +41,6 @@ func before(e *fsm.Event) error {
 }
 
 func main() {
-
 	person := &Person{
 		Сash:  1000001,
 		State: fsm.State("poor"),
@@ -50,7 +48,7 @@ func main() {
 
 	f := fsm.NewFSM()
 
-	f.Register(reflect.TypeOf((*Person)(nil)), "State", fsm.Events{{
+	fsm.Register[*Person](f, "State", fsm.Events{{
 		Name:   "grow_rich",
 		From:   []fsm.State{"poor"},
 		To:     fsm.State("rich"),
